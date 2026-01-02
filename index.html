@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notes</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #fff;
+}
+
+/* Editor */
+#editor {
+  padding: 16px;
+  padding-bottom: 90px;
+}
+
+.line {
+  outline: none;
+  margin: 4px 0;
+  line-height: 1.35;
+}
+
+.normal {
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.subtitle {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* Toolbar */
+.toolbar {
+  position: fixed;
+  left: 0;
+  width: 100%;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  background: #f2f2f2;
+  border-top: 1px solid #ddd;
+  z-index: 100;
+}
+
+.toolbar button {
+  padding: 6px 10px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  background: #e0e0e0;
+}
+
+.toolbar button:active {
+  background: #cfcfcf;
+  transform: scale(0.95);
+}
+</style>
+</head>
+
+<body>
+
+<div id="editor"></div>
+
+<div class="toolbar" id="toolbar">
+  <button onclick="setLineStyle('title')">Title</button>
+  <button onclick="setLineStyle('subtitle')">Subtitle</button>
+  <button onclick="setLineStyle('normal')">Text</button>
+  <button onclick="formatText('bold')"><b>B</b></button>
+  <button onclick="formatText('italic')"><i>I</i></button>
+  <button onclick="formatText('underline')"><u>U</u></button>
+  <button onclick="insertBullet()">•</button>
+  <button onclick="insertCheckbox()">☐</button>
+</div>
+
+<script>
+const editor = document.getElementById("editor");
+const toolbar = document.getElementById("toolbar");
+let currentLine = null;
+
+/* ---------- Keyboard-aware toolbar ---------- */
+function updateToolbarPosition() {
+  if (!window.visualViewport) return;
+
+  const keyboardHeight =
+    window.innerHeight -
+    window.visualViewport.height -
+    window.visualViewport.offsetTop;
+
+  toolbar.style.bottom = keyboardHeight > 100
+    ? keyboardHeight + "px"
+    : "0px";
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", updateToolbarPosition);
+  window.visualViewport.addEventListener("scroll", updateToolbarPosition);
+}
+
+/* ---------- Editor ---------- */
+function createLine(type = "normal", after = null) {
+  const div = document.createElement("div");
+  div.className = `line ${type}`;
+  div.contentEditable = true;
+
+  if (after) {
+    editor.insertBefore(div, after.nextSibling);
+  } else {
+    editor.appendChild(div);
+  }
+
+  currentLine = div;
+  placeCaretAtEnd(div);
+
+  div.addEventListener("focus", () => currentLine = div);
+
+  div.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      createLine("normal", div);
+    }
+
+    if (e.key === "Backspace") {
+      const sel = window.getSelection();
+      if (sel.anchorOffset === 0 && div.textContent === "") {
+        const prev = div.previousElementSibling;
+        if (prev) {
+          e.preventDefault();
+          div.remove();
+          currentLine = prev;
+          placeCaretAtEnd(prev);
+        }
+      }
+    }
+  });
+
+  /* Checkbox toggle (ONLY empty ☐ / filled ☑) */
+  div.addEventListener("click", () => {
+    const text = div.textContent;
+
+    if (text.startsWith("☐ ")) {
+      div.textContent = "☑ " + text.slice(2);
+      placeCaretAtEnd(div);
+    } else if (text.startsWith("☑ ")) {
+      div.textContent = "☐ " + text.slice(2);
+      placeCaretAtEnd(div);
+    }
+  });
+}
+
+/* ---------- Formatting ---------- */
+function setLineStyle(type) {
+  if (!currentLine) return;
+  currentLine.className = `line ${type}`;
+  currentLine.focus();
+}
+
+function formatText(cmd) {
+  document.execCommand(cmd);
+}
+
+function insertBullet() {
+  document.execCommand("insertUnorderedList");
+}
+
+function insertCheckbox() {
+  document.execCommand("insertText", false, "☐ ");
+}
+
+/* ---------- Caret ---------- */
+function placeCaretAtEnd(el) {
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+/* Start */
+createLine();
+updateToolbarPosition();
+</script>
+
+</body>
+</html>
