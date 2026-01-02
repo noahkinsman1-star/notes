@@ -1,259 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>1Notes</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1Notes</title>
 
-<style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #ffffff;
-}
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #fff;
+    }
 
-/* ---------- NOTES LIST ---------- */
-#notesList {
-  padding: 16px;
-}
+    #app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-.note-item {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  font-size: 18px;
-}
+    #notesList {
+      width: 35%;
+      border-right: 1px solid #ddd;
+      overflow-y: auto;
+    }
 
-.note-item:active {
-  background: #f2f2f2;
-}
+    #notesList div {
+      padding: 14px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
 
-#newNoteBtn {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 12px;
-  font-size: 16px;
-  border: none;
-  border-radius: 8px;
-  background: #e0e0e0;
-}
+    #editor {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-/* ---------- EDITOR ---------- */
-#editorScreen {
-  display: none;
-}
+    #noteContent {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      outline: none;
+    }
 
-#editor {
-  padding: 16px;
-  padding-bottom: 100px;
-}
+    .line {
+      min-height: 22px;
+      outline: none;
+      white-space: pre-wrap;
+    }
 
-.line {
-  outline: none;
-  margin: 4px 0;
-  line-height: 1.35;
-}
+    #toolbar {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-top: 1px solid #ddd;
+      background: #f9f9f9;
+      position: fixed;
+      left: 35%;
+      right: 0;
+      bottom: 0;
+    }
 
-.title { font-size: 26px; font-weight: 700; }
-.subtitle { font-size: 20px; font-weight: 600; }
-.normal { font-size: 18px; font-weight: 400; }
-
-/* ---------- TOOLBAR ---------- */
-.toolbar {
-  position: fixed;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  display: flex;
-  gap: 6px;
-  padding: 8px;
-  background: #f2f2f2;
-  border-top: 1px solid #ddd;
-  z-index: 999;
-}
-
-.toolbar button {
-  padding: 6px 10px;
-  font-size: 14px;
-  border: none;
-  border-radius: 6px;
-  background: #e0e0e0;
-}
-
-.toolbar button:active {
-  background: #cfcfcf;
-  transform: scale(0.95);
-}
-
-/* ---------- TOP BAR ---------- */
-.topbar {
-  padding: 12px;
-  border-bottom: 1px solid #ddd;
-  display: flex;
-  align-items: center;
-}
-
-.topbar button {
-  border: none;
-  background: none;
-  font-size: 16px;
-}
-</style>
+    button {
+      font-size: 16px;
+    }
+  </style>
 </head>
 
 <body>
+  <div id="app">
+    <div id="notesList"></div>
 
-<!-- NOTES LIST SCREEN -->
-<div id="notesList">
-  <button id="newNoteBtn">New Note</button>
-  <div id="notesContainer"></div>
-</div>
-
-<!-- EDITOR SCREEN -->
-<div id="editorScreen">
-  <div class="topbar">
-    <button onclick="backToList()">← Notes</button>
+    <div id="editor">
+      <div id="noteContent"></div>
+    </div>
   </div>
 
-  <div id="editor"></div>
-
-  <div class="toolbar" id="toolbar">
-    <button onclick="setLineStyle('title')">Title</button>
-    <button onclick="setLineStyle('subtitle')">Subtitle</button>
-    <button onclick="setLineStyle('normal')">Text</button>
-    <button onclick="formatText('bold')"><b>B</b></button>
-    <button onclick="formatText('italic')"><i>I</i></button>
-    <button onclick="formatText('underline')"><u>U</u></button>
-    <button onclick="insertBullet()">•</button>
-    <button onclick="insertCheckbox()">☐</button>
+  <div id="toolbar">
+    <button id="newLine">New Line</button>
+    <button id="checkbox">☐</button>
   </div>
-</div>
 
-<script>
-const notesKey = "notes-data";
-let notes = JSON.parse(localStorage.getItem(notesKey)) || [];
-let currentNoteIndex = null;
+  <script>
+    const notesList = document.getElementById("notesList");
+    const noteContent = document.getElementById("noteContent");
+    const toolbar = document.getElementById("toolbar");
 
-const notesList = document.getElementById("notesList");
-const notesContainer = document.getElementById("notesContainer");
-const editorScreen = document.getElementById("editorScreen");
-const editor = document.getElementById("editor");
-const toolbar = document.getElementById("toolbar");
+    let notes = JSON.parse(localStorage.getItem("notes") || "[]");
+    let currentIndex = null;
 
-let currentLine = null;
+    function save() {
+      localStorage.setItem("notes", JSON.stringify(notes));
+    }
 
-/* ---------- NOTES LIST ---------- */
-function renderNotes() {
-  notesContainer.innerHTML = "";
-  notes.forEach((note, i) => {
-    const div = document.createElement("div");
-    div.className = "note-item";
-    div.textContent = note.preview || "New Note";
-    div.onclick = () => openNote(i);
-    notesContainer.appendChild(div);
-  });
-}
+    function renderList() {
+      notesList.innerHTML = "";
+      notes.forEach((note, i) => {
+        const div = document.createElement("div");
+        div.textContent = note.lines.join(" ").slice(0, 40) || "New Note";
+        div.onclick = () => openNote(i);
+        notesList.appendChild(div);
+      });
+    }
 
-document.getElementById("newNoteBtn").onclick = () => {
-  notes.push({ content: "", preview: "" });
-  localStorage.setItem(notesKey, JSON.stringify(notes));
-  openNote(notes.length - 1);
-};
+    function openNote(i) {
+      currentIndex = i;
+      noteContent.innerHTML = "";
+      notes[i].lines.forEach(text => createLine(text));
+    }
 
-/* ---------- OPEN / CLOSE ---------- */
-function openNote(index) {
-  currentNoteIndex = index;
-  notesList.style.display = "none";
-  editorScreen.style.display = "block";
-  editor.innerHTML = notes[index].content || "";
-  if (!editor.innerHTML) createLine();
-}
+    function createLine(text = "") {
+      const div = document.createElement("div");
+      div.className = "line";
+      div.contentEditable = true;
+      div.textContent = text;
 
-function backToList() {
-  saveNote();
-  editorScreen.style.display = "none";
-  notesList.style.display = "block";
-  renderNotes();
-}
+      // ✅ FIXED checkbox behavior
+      div.addEventListener("click", (e) => {
+        const t = div.textContent;
+        if (
+          e.offsetX < 24 &&
+          (t.startsWith("☐ ") || t.startsWith("☑ "))
+        ) {
+          e.preventDefault();
+          div.textContent =
+            (t.startsWith("☑ ") ? "☐ " : "☑ ") + t.slice(2);
+          placeCaretAtEnd(div);
+        }
+      });
 
-/* ---------- SAVE ---------- */
-function saveNote() {
-  const text = editor.innerText.trim();
-  if (!text) {
-    notes.splice(currentNoteIndex, 1);
-  } else {
-    notes[currentNoteIndex] = {
-      content: editor.innerHTML,
-      preview: text.split("\n")[0]
+      div.addEventListener("input", sync);
+      div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const newLine = createLine();
+          div.after(newLine);
+          placeCaretAtStart(newLine);
+        }
+      });
+
+      noteContent.appendChild(div);
+      return div;
+    }
+
+    function sync() {
+      if (currentIndex === null) return;
+      const lines = [...noteContent.children]
+        .map(l => l.textContent)
+        .filter(l => l.trim() !== "");
+      notes[currentIndex].lines = lines;
+      save();
+      renderList();
+    }
+
+    function placeCaretAtEnd(el) {
+      const r = document.createRange();
+      const s = window.getSelection();
+      r.selectNodeContents(el);
+      r.collapse(false);
+      s.removeAllRanges();
+      s.addRange(r);
+    }
+
+    function placeCaretAtStart(el) {
+      const r = document.createRange();
+      const s = window.getSelection();
+      r.setStart(el, 0);
+      r.collapse(true);
+      s.removeAllRanges();
+      s.addRange(r);
+    }
+
+    document.getElementById("newLine").onclick = () => {
+      createLine();
     };
-  }
-  localStorage.setItem(notesKey, JSON.stringify(notes));
-}
 
-/* ---------- EDITOR (UNCHANGED) ---------- */
-function createLine(type = "normal", after = null) {
-  const div = document.createElement("div");
-  div.className = `line ${type}`;
-  div.contentEditable = "true";
-  div.setAttribute("spellcheck", "true");
-
-  if (after) editor.insertBefore(div, after.nextSibling);
-  else editor.appendChild(div);
-
-  currentLine = div;
-  placeCaretAtEnd(div);
-
-  div.addEventListener("focus", () => currentLine = div);
-
-  div.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      createLine("normal", div);
-    }
-
-    if (e.key === "Backspace" && div.textContent === "") {
-      const prev = div.previousElementSibling;
-      if (prev) {
-        e.preventDefault();
-        div.remove();
-        placeCaretAtEnd(prev);
+    document.getElementById("checkbox").onclick = () => {
+      const line = document.activeElement;
+      if (line && line.classList.contains("line")) {
+        if (!line.textContent.startsWith("☐ ") && !line.textContent.startsWith("☑ ")) {
+          line.textContent = "☐ " + line.textContent;
+          placeCaretAtEnd(line);
+          sync();
+        }
       }
+    };
+
+    // ✅ FIXED keyboard / toolbar overlap
+    function updateToolbarPosition() {
+      if (!window.visualViewport) return;
+      const vv = window.visualViewport;
+      const keyboardHeight =
+        window.innerHeight - vv.height - vv.offsetTop;
+      toolbar.style.bottom =
+        keyboardHeight > 0 ? keyboardHeight + "px" : "0px";
     }
-  });
 
-  div.addEventListener("click", () => {
-    if (div.textContent.startsWith("☐ ")) {
-      div.textContent = "☑ " + div.textContent.slice(2);
-      placeCaretAtEnd(div);
-    } else if (div.textContent.startsWith("☑ ")) {
-      div.textContent = "☐ " + div.textContent.slice(2);
-      placeCaretAtEnd(div);
+    window.visualViewport?.addEventListener("resize", updateToolbarPosition);
+    document.addEventListener("focusin", updateToolbarPosition);
+
+    if (notes.length === 0) {
+      notes.push({ lines: [] });
+      save();
     }
-  });
-}
 
-function setLineStyle(type) {
-  if (!currentLine) return;
-  currentLine.className = `line ${type}`;
-  currentLine.focus();
-}
-
-function formatText(cmd) { document.execCommand(cmd); }
-function insertBullet() { document.execCommand("insertUnorderedList"); }
-function insertCheckbox() { document.execCommand("insertText", false, "☐ "); }
-
-function placeCaretAtEnd(el) {
-  el.focus();
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  range.collapse(false);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-/* ---------- START ---------- */
-renderNotes();
-</script>
-
+    renderList();
+    openNote(0);
+  </script>
 </body>
 </html>
