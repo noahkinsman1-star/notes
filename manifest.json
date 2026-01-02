@@ -1,0 +1,9 @@
+{
+  "name": "1Notes",
+  "short_name": "1Notes",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": []
+}
